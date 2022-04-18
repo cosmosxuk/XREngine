@@ -17,6 +17,7 @@ process.on('unhandledRejection', (error, promise) => {
 })
 
 
+
 const analyticsServerPipe = pipe(configureSocketIO())
 
 export const start = async (): Promise<Application> => {
