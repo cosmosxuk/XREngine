@@ -7,13 +7,13 @@ import { EngineActions } from '@xrengine/engine/src/ecs/classes/EngineService'
 import { Entity } from '@xrengine/engine/src/ecs/classes/Entity'
 import { removeEntity } from '@xrengine/engine/src/ecs/functions/EntityFunctions'
 import { emptyEntityTree } from '@xrengine/engine/src/ecs/functions/EntityTreeFunctions'
-import { dispatchLocal } from '@xrengine/engine/src/networking/functions/dispatchFrom'
 import { accessEngineRendererState, EngineRendererAction } from '@xrengine/engine/src/renderer/EngineRendererState'
 import { configureEffectComposer } from '@xrengine/engine/src/renderer/functions/configureEffectComposer'
 import { EngineRenderer } from '@xrengine/engine/src/renderer/WebGLRendererSystem'
 import TransformGizmo from '@xrengine/engine/src/scene/classes/TransformGizmo'
 import { ObjectLayers } from '@xrengine/engine/src/scene/constants/ObjectLayers'
 import { loadSceneFromJSON } from '@xrengine/engine/src/scene/functions/SceneLoading'
+import { dispatchAction } from '@xrengine/hyperflux'
 
 import EditorInfiniteGridHelper from '../classes/EditorInfiniteGridHelper'
 import { RenderModes, RenderModesType } from '../constants/RenderModes'
@@ -57,8 +57,6 @@ export const SceneState: SceneStateType = {
 
 export async function initializeScene(projectFile: SceneJson): Promise<Error[] | void> {
   EngineRenderer.instance.disableUpdate = true
-  if (SceneState.isInitialized) disposeScene()
-
   SceneState.isInitialized = false
 
   if (!Engine.scene) Engine.scene = new Scene()
@@ -100,14 +98,15 @@ export function initializeRenderer(): void {
 
     addInputActionMapping(ActionSets.EDITOR, EditorMapping)
 
-    dispatchLocal(
+    dispatchAction(
+      Engine.store,
       EngineActions.enableScene({
         renderer: true,
         physics: true
       }) as any
     )
 
-    dispatchLocal(EngineActions.setPhysicsDebug(true) as any)
+    dispatchAction(Engine.store, EngineActions.setPhysicsDebug(true) as any)
 
     SceneState.grid.setSize(accessModeState().translationSnap.value)
 
@@ -117,7 +116,7 @@ export function initializeRenderer(): void {
     EngineRenderer.instance.disableUpdate = false
 
     accessEngineRendererState().automatic.set(false)
-    dispatchLocal(EngineRendererAction.setQualityLevel(EngineRenderer.instance.maxQualityLevel))
+    dispatchAction(Engine.store, EngineRendererAction.setQualityLevel(EngineRenderer.instance.maxQualityLevel))
   } catch (error) {
     console.error(error)
   }
@@ -230,6 +229,8 @@ export async function exportScene(options = {} as DefaultExportOptionsType) {
 }*/
 
 export function disposeScene() {
+  Engine.activeCSMLightEntity = null
+  Engine.directionalLightEntities = []
   if (Engine.activeCameraEntity) removeEntity(Engine.activeCameraEntity, true)
   if (SceneState.gizmoEntity) removeEntity(SceneState.gizmoEntity, true)
   if (SceneState.editorEntity) removeEntity(SceneState.editorEntity, true)
@@ -258,6 +259,7 @@ export function disposeScene() {
       removeEntity(entity, true)
     }
     emptyEntityTree(eTree)
+    eTree.entityNodeMap.clear()
     eTree.uuidNodeMap.clear()
     Engine.scene.clear()
   }

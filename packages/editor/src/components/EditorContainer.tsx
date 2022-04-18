@@ -1,13 +1,12 @@
 import { DockLayout, DockMode, LayoutData, TabData } from 'rc-dock'
 import 'rc-dock/dist/rc-dock.css'
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useHistory } from 'react-router-dom'
 import styled from 'styled-components'
 
 import { useDispatch } from '@xrengine/client-core/src/store'
 import { SceneJson } from '@xrengine/common/src/interfaces/SceneInterface'
-import { useHookedEffect } from '@xrengine/common/src/utils/useHookedEffect'
 import { getGLTFLoader } from '@xrengine/engine/src/assets/classes/AssetLoader'
 import { GLTFExporter } from '@xrengine/engine/src/assets/exporters/gltf/GLTFExporter'
 import { Engine } from '@xrengine/engine/src/ecs/classes/Engine'
@@ -15,6 +14,7 @@ import { useEngineState } from '@xrengine/engine/src/ecs/classes/EngineService'
 import { useWorld } from '@xrengine/engine/src/ecs/functions/SystemHooks'
 import { gltfToSceneJson, sceneFromGLTF, sceneToGLTF } from '@xrengine/engine/src/scene/functions/GLTFConversion'
 import { serializeWorld } from '@xrengine/engine/src/scene/functions/serializeWorld'
+import { useHookEffect } from '@xrengine/hyperflux'
 
 import AccountTreeIcon from '@mui/icons-material/AccountTree'
 import Inventory2Icon from '@mui/icons-material/Inventory2'
@@ -163,7 +163,7 @@ const EditorContainer = () => {
     setSearchElement(searchInput)
   }
 
-  useHookedEffect(() => {
+  useHookEffect(() => {
     if (sceneName.value && editorReady) {
       console.log(`Loading scene ${sceneName.value} via given url`)
       loadScene(sceneName.value)
@@ -272,7 +272,7 @@ const EditorContainer = () => {
           )
         })) as any
         if (result && projectName.value) {
-          const cubemapUrl = await uploadBakeToServer(useWorld().entityTree.rootNode.entity)
+          await uploadBakeToServer(useWorld().entityTree.rootNode.entity)
           await saveScene(projectName.value, result.name, blob, abortController.signal)
           dispatch(EditorAction.sceneModified(false))
         } else {
@@ -436,7 +436,7 @@ const EditorContainer = () => {
 
     try {
       if (projectName.value) {
-        const cubemapUrl = await uploadBakeToServer(useWorld().entityTree.rootNode.entity)
+        await uploadBakeToServer(useWorld().entityTree.rootNode.entity)
         await saveScene(projectName.value, sceneName.value, blob, abortController.signal)
         await saveProject(projectName.value)
       }
@@ -471,15 +471,16 @@ const EditorContainer = () => {
   }, [toggleRefetchScenes])
 
   useEffect(() => {
-    if (sceneLoaded.value && dockPanelRef.current) {
-      dockPanelRef.current.updateTab('viewPanel', {
-        id: 'viewPanel',
-        title: 'Viewport',
-        content: <div />
-      })
+    if (!dockPanelRef.current) return
 
-      dockPanelRef.current.updateTab('filesPanel', dockPanelRef.current.find('filesPanel') as TabData, true)
-    }
+    dockPanelRef.current.updateTab('viewPanel', {
+      id: 'viewPanel',
+      title: 'Viewport',
+      content: viewPortPanelContent(!sceneLoaded.value)
+    })
+
+    const activePanel = sceneLoaded.value ? 'filesPanel' : 'scenePanel'
+    dockPanelRef.current.updateTab(activePanel, dockPanelRef.current.find(activePanel) as TabData, true)
   }, [sceneLoaded])
 
   useEffect(() => {
@@ -488,7 +489,7 @@ const EditorContainer = () => {
     })
   }, [])
 
-  useHookedEffect(() => {
+  useHookEffect(() => {
     if (editorError) {
       onEditorError(editorError.value)
     }
@@ -540,6 +541,17 @@ const EditorContainer = () => {
       }
     ]
   }
+
+  const viewPortPanelContent = useCallback((shouldDisplay) => {
+    return shouldDisplay ? (
+      <div className={styles.bgImageBlock}>
+        <img src="/static/xrengine.png" />
+        <h2>{t('editor:selectSceneMsg')}</h2>
+      </div>
+    ) : (
+      <div />
+    )
+  }, [])
 
   const toolbarMenu = generateToolbarMenu()
   if (!editorReady) return <></>
@@ -594,12 +606,7 @@ const EditorContainer = () => {
                 {
                   id: 'viewPanel',
                   title: 'Viewport',
-                  content: (
-                    <div className={styles.bgImageBlock}>
-                      <img src="/static/xrengine.png" />
-                      <h2>{t('editor:selectSceneMsg')}</h2>
-                    </div>
-                  )
+                  content: viewPortPanelContent(true)
                 }
               ],
               size: 1
