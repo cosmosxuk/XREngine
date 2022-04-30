@@ -4,10 +4,11 @@ import { Object3D, Quaternion, Vector3 } from 'three'
 
 import { ComponentJson } from '@xrengine/common/src/interfaces/SceneInterface'
 
-import { createEngine, Engine } from '../../../ecs/classes/Engine'
+import { Engine } from '../../../ecs/classes/Engine'
 import { Entity } from '../../../ecs/classes/Entity'
 import { addComponent, getComponent, hasComponent } from '../../../ecs/functions/ComponentFunctions'
 import { createEntity } from '../../../ecs/functions/EntityFunctions'
+import { createEngine } from '../../../initializeEngine'
 import { ColliderComponent } from '../../../physics/components/ColliderComponent'
 import { CollisionComponent } from '../../../physics/components/CollisionComponent'
 import { EntityNodeComponent } from '../../components/EntityNodeComponent'
@@ -46,7 +47,6 @@ describe('ColliderFunctions', () => {
   })
 
   afterEach(() => {
-    Engine.instance.currentWorld = null!
     delete (globalThis as any).PhysX
   })
 

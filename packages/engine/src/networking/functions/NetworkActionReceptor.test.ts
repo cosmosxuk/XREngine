@@ -5,9 +5,10 @@ import { NetworkId } from '@xrengine/common/src/interfaces/NetworkId'
 import { UserId } from '@xrengine/common/src/interfaces/UserId'
 import ActionFunctions from '@xrengine/hyperflux/functions/ActionFunctions'
 
-import { createEngine, Engine } from '../../ecs/classes/Engine'
+import { Engine } from '../../ecs/classes/Engine'
 import { addComponent, defineQuery, getComponent, hasComponent } from '../../ecs/functions/ComponentFunctions'
 import { createEntity } from '../../ecs/functions/EntityFunctions'
+import { createEngine } from '../../initializeEngine'
 import { NetworkObjectAuthorityTag } from '../components/NetworkObjectAuthorityTag'
 import { NetworkObjectComponent } from '../components/NetworkObjectComponent'
 import { NetworkActionReceptor } from './NetworkActionReceptor'
@@ -34,21 +35,17 @@ describe('NetworkActionReceptors', () => {
       assert.equal(world.userIdToUserIndex.get(userId), userIndex)
     })
 
-    it('should not add client if host', () => {
+    it('should not add client if already exists', () => {
       const world = Engine.instance.currentWorld
       const userId = 'user id' as UserId
       const userName = 'user name'
+      const userName2 = 'user name 2'
       const userIndex = 1
-      world.hostId = userId as UserId
-      Engine.instance.userId = userId
 
       NetworkActionReceptor.addClient(world, userId, userName, userIndex)
+      NetworkActionReceptor.addClient(world, userId, userName2, userIndex)
 
-      assert(!world.clients.get(userId))
-      assert(!world.userIndexToUserId.get(userIndex))
-      assert(!world.userIdToUserIndex.get(userId))
-
-      Engine.instance.userId = undefined!
+      assert(world.clients.get(userId)?.name, userName)
     })
   })
 
@@ -340,7 +337,6 @@ describe('NetworkActionReceptors', () => {
 
       const world = Engine.instance.currentWorld
       NetworkActionReceptor.addClient(world, userId, userName, userIndex)
-      Engine.instance.currentWorld = world
 
       const hostIndex = 0
       world.clients.set(world.hostId, { userId: world.hostId, name: 'server', index: hostIndex })

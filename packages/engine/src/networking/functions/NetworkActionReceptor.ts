@@ -21,9 +21,6 @@ const removeAllNetworkClients = (world: World, removeSelf = false) => {
 }
 
 const addClient = (world: World, userId: UserId, name: string, index: number) => {
-  // host adds the client manually during connectToWorld
-  if (world.isHosting) return
-
   // set utility maps - override if moving through portal
   world.userIdToUserIndex.set(userId, index)
   world.userIndexToUserId.set(index, userId)
@@ -55,7 +52,6 @@ const removeClient = (world: World, userId: UserId, allowRemoveSelf = false) => 
   world.userIdToUserIndex.delete(userId)
   world.userIndexToUserId.delete(userIndex)
   world.clients.delete(userId)
-  world.namedEntities.delete(userId)
   world.store.actions.cached = world.store.actions.cached.filter((action) => action.$from !== userId)
 }
 
@@ -204,7 +200,7 @@ const setUserTyping = (action) => {
 const createNetworkActionReceptor = (world: World) =>
   addActionReceptor(world.store, function NetworkActionReceptor(action) {
     matches(action)
-      .when(NetworkWorldAction.timeSync.matchesFromUser(world.hostId), ({ elapsedTime, clockTime }) => {
+      .when(NetworkWorldAction.timeSync.matches, ({ elapsedTime, clockTime }) => {
         // todo: smooth out time sync over multiple frames
         world.elapsedTime = elapsedTime + (Date.now() - clockTime) / 1000
       })
